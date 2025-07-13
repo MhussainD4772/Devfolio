@@ -1,26 +1,36 @@
-import { Link } from 'react-router-dom'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import './App.css';
+import CreatePortfolio from './CreatePortfolio';
 
 function App() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-white to-slate-100 px-4 text-center">
-      {/* Branding */}
-      <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Devfolio</h1>
-
-      {/* Tagline */}
-      <p className="text-lg sm:text-xl text-gray-600 mb-8">
-        Create your personal developer portfolio in seconds.
-      </p>
-
-      {/* CTA Button */}
-      <Link
-        to="/create"
-        className="px-6 py-3 bg-blue-600 text-white text-lg font-medium rounded-lg shadow hover:bg-blue-700 transition"
-      >
-        Create My Portfolio
-      </Link>
-    </div>
-  )
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                  Welcome to Devfolio
+                </h1>
+                <p className="text-gray-600 mb-8">
+                  Create your professional portfolio in minutes
+                </p>
+                <Link
+                  to="/create"
+                  className="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Create Portfolio
+                </Link>
+              </div>
+            </div>
+          } />
+          <Route path="/create" element={<CreatePortfolio />} />
+        </Routes>
+      </div>
+    </Router>
+  );
 }
 
-export default App
-
+export default App;
