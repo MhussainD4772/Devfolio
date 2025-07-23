@@ -32,21 +32,21 @@ function App() {
       <div className="relative z-10 text-center p-10 bg-white/80 rounded-2xl shadow-2xl backdrop-blur-md border border-gray-100">
         <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6 tracking-tight">
           Welcome to <span className="text-indigo-600">Devfolio</span>
-        </h1>
+                </h1>
         <p className="text-lg md:text-2xl text-gray-700 mb-10">
           Build your professional developer portfolio in minutes.<br />
           <span className="text-indigo-500 font-semibold">Showcase your skills. Land your dream job.</span>
-        </p>
+                </p>
         <div>
-          <Link
-            to="/create"
+                <Link
+                  to="/create"
             className="inline-block px-10 py-4 bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-xl font-bold rounded-full shadow-lg hover:from-blue-600 hover:to-indigo-600 hover:scale-105 transform transition-all duration-300"
-          >
+                >
             🚀 Get Started
-          </Link>
-        </div>
+                </Link>
+              </div>
+            </div>
       </div>
-    </div>
   );
 }
 
