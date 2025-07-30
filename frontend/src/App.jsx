@@ -1,123 +1,30 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from './supabase.js';
-import { useEffect, useState } from 'react';
-import EmailAuthModal from './EmailAuthModal';
+import { useAuth } from './hooks/useAuth.js';
 import './App.css'
 import './animations.css';
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [showEmailModal, setShowEmailModal] = useState(false);
-
-  // ADD THIS LINE TO TEST CONNECTION
-  console.log('Supabase connected:', supabase);
-  
-  // Log user data when user changes
-  useEffect(() => {
-    if (user) {
-      console.log('Current user data:', {
-        id: user.id,
-        email: user.email,
-        created_at: user.created_at,
-        last_sign_in: user.last_sign_in_at
-      });
-    }
-  }, [user]);
+  const { user, signOut, signInWithGitHub } = useAuth();
 
   // Handle GitHub OAuth sign in
   const handleGitHubSignIn = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github'
-      });
-      if (error) throw error;
+      await signInWithGitHub();
     } catch (error) {
       console.error('Error signing in with GitHub:', error);
       alert('Error: ' + error.message);
     }
   };
 
-  // Handle email sign in
-  const handleEmailSignIn = async (email, password) => {
-    try {
-      console.log('Attempting signin with:', email);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
-      
-      console.log('Signin response:', { data, error });
-      
-      if (error) throw error;
-      
-      console.log('Signin successful:', data.user);
-      setShowEmailModal(false);
-    } catch (error) {
-      console.error('Error signing in with email:', error);
-      throw error;
-    }
-  };
-
-  // Handle email sign up
-  const handleEmailSignUp = async (email, password) => {
-    try {
-      console.log('Attempting signup with:', email);
-      
-      const { data, error } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-          data: {
-            email_confirmed: true
-          }
-        }
-      });
-      
-      console.log('Signup response:', { data, error });
-      
-      if (error) throw error;
-      
-      // Check if user was created successfully
-      if (data.user) {
-        console.log('User created:', data.user);
-        alert('Account created successfully! You can now sign in.');
-      } else {
-        alert('Account created! Please sign in with your email and password.');
-      }
-      
-      setShowEmailModal(false);
-    } catch (error) {
-      console.error('Error signing up with email:', error);
-      throw error;
-    }
-  };
-
-  // Add this function to handle sign out
+  // Handle sign out
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await signOut();
     } catch (error) {
       console.error('Error signing out:', error);
     }
   };
-
-  // Add this useEffect to check user status
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -223,15 +130,15 @@ function App() {
                       Continue with GitHub
                     </button>
                     
-                    <button
-                      onClick={() => setShowEmailModal(true)}
+                    <Link
+                      to="/signup"
                       className="flex-1 flex items-center justify-center px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
                     >
                       <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                       </svg>
                       Continue with Email
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -240,13 +147,7 @@ function App() {
         </div>
       </div>
 
-      {/* Email Authentication Modal */}
-      <EmailAuthModal
-        isOpen={showEmailModal}
-        onClose={() => setShowEmailModal(false)}
-        onSignIn={handleEmailSignIn}
-        onSignUp={handleEmailSignUp}
-      />
+
     </div>
   );
 }
