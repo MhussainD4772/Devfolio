@@ -15,6 +15,16 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Profiles table (public profiles for auth.users)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+    full_name TEXT,
+    email TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Portfolios table (main portfolio data)
 CREATE TABLE IF NOT EXISTS portfolios (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -178,6 +188,7 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE social_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_info ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Users can read their own data
 CREATE POLICY "Users can view own portfolios" ON portfolios
@@ -267,6 +278,16 @@ CREATE POLICY "Users can delete own social links" ON social_links
 CREATE POLICY "Users can delete own contact info" ON contact_info
     FOR DELETE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
 
+-- Profiles policies
+CREATE POLICY "Users can view own profile" ON profiles
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile" ON profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Public read access for public portfolios
 CREATE POLICY "Public can view public portfolios" ON portfolios
     FOR SELECT USING (is_public = true);
@@ -299,6 +320,10 @@ RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO public.users (id, email)
     VALUES (NEW.id, NEW.email);
+    
+    INSERT INTO public.profiles (id, full_name, email)
+    VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.email);
+    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
