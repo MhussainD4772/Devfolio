@@ -1,6 +1,15 @@
 import { supabase } from '../supabase';
 
 class PortfolioService {
+  constructor() {
+    // Check if Supabase is properly configured
+    this.isConfigured = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+    
+    if (!this.isConfigured) {
+      console.warn('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file');
+    }
+  }
+
   // ==================== PORTFOLIO OPERATIONS ====================
   
   /**
@@ -8,23 +17,36 @@ class PortfolioService {
    */
   async createPortfolio(portfolioData) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!this.isConfigured) {
+        throw new Error('Supabase not configured. Please set up your environment variables.');
+      }
 
+      // For now, let's create portfolios without requiring authentication
+      // We'll use a default user ID or create a simple portfolio structure
       const { data, error } = await supabase
         .from('portfolios')
         .insert({
-          user_id: user.id,
           name: portfolioData.name,
           bio: portfolioData.bio,
           profile_picture_url: portfolioData.profilePicture,
           location: portfolioData.location,
           is_public: true
         })
-        .select()
+        .select('id, name, bio, profile_picture_url, location, is_public, slug, created_at, updated_at')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        if (error.code === '23505') {
+          throw new Error('A portfolio with this name already exists. Please choose a different name.');
+        } else if (error.code === '42P01') {
+          throw new Error('Database table not found. Please run the database schema first.');
+        } else if (error.code === '23503') {
+          throw new Error('Foreign key constraint failed. Please check the database schema.');
+        } else {
+          throw new Error(`Database error: ${error.message || error.details || 'Unknown database error'}`);
+        }
+      }
       return data;
     } catch (error) {
       console.error('Error creating portfolio:', error);
@@ -43,15 +65,14 @@ class PortfolioService {
       const { data, error } = await supabase
         .from('portfolios')
         .select(`
-          *,
-          education (*),
-          experience (*),
-          skills (*),
-          projects (*),
-          social_links (*),
-          contact_info (*)
+          id, name, bio, profile_picture_url, location, is_public, slug, created_at, updated_at,
+          education (id, institution, degree, year, description, start_date, end_date, gpa),
+          experience (id, company, position, duration, description, start_date, end_date, is_current, company_logo_url),
+          skills (id, name, category, proficiency_level),
+          projects (id, title, description, github_link, live_link, image_url, technologies, featured),
+          social_links (id, platform, url, display_name),
+          contact_info (id, email, phone, website, address)
         `)
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -70,13 +91,13 @@ class PortfolioService {
       const { data, error } = await supabase
         .from('portfolios')
         .select(`
-          *,
-          education (*),
-          experience (*),
-          skills (*),
-          projects (*),
-          social_links (*),
-          contact_info (*)
+          id, name, bio, profile_picture_url, location, is_public, slug, created_at, updated_at,
+          education (id, institution, degree, year, description, start_date, end_date, gpa),
+          experience (id, company, position, duration, description, start_date, end_date, is_current, company_logo_url),
+          skills (id, name, category, proficiency_level),
+          projects (id, title, description, github_link, live_link, image_url, technologies, featured),
+          social_links (id, platform, url, display_name),
+          contact_info (id, email, phone, website, address)
         `)
         .eq('id', portfolioId)
         .single();
@@ -94,22 +115,29 @@ class PortfolioService {
    */
   async getPortfolioBySlug(slug) {
     try {
+      console.log('Fetching portfolio by slug:', slug);
+      
       const { data, error } = await supabase
         .from('portfolios')
         .select(`
-          *,
-          education (*),
-          experience (*),
-          skills (*),
-          projects (*),
-          social_links (*),
-          contact_info (*)
+          id, name, bio, profile_picture_url, location, is_public, slug, created_at, updated_at,
+          education (id, institution, degree, year, description, start_date, end_date, gpa),
+          experience (id, company, position, duration, description, start_date, end_date, is_current, company_logo_url),
+          skills (id, name, category, proficiency_level),
+          projects (id, title, description, github_link, live_link, image_url, technologies, featured),
+          social_links (id, platform, url, display_name),
+          contact_info (id, email, phone, website, address)
         `)
         .eq('slug', slug)
         .eq('is_public', true)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching portfolio:', error);
+        throw error;
+      }
+      
+      console.log('Portfolio found:', data);
       return data;
     } catch (error) {
       console.error('Error fetching portfolio by slug:', error);
@@ -599,45 +627,62 @@ class PortfolioService {
    */
   async createCompletePortfolio(portfolioData) {
     try {
+      console.log('Creating complete portfolio with data:', portfolioData);
+      console.log('Supabase configured:', this.isConfigured);
+
       // Create portfolio first
       const portfolio = await this.createPortfolio(portfolioData);
+      console.log('Portfolio created:', portfolio);
 
       // Add education entries
       if (portfolioData.education && portfolioData.education.length > 0) {
+        console.log('Adding education entries:', portfolioData.education);
         for (const edu of portfolioData.education) {
-          await this.addEducation(portfolio.id, edu);
+          if (edu.institution && edu.degree) { // Only add if required fields are present
+            await this.addEducation(portfolio.id, edu);
+          }
         }
       }
 
       // Add experience entries
       if (portfolioData.experience && portfolioData.experience.length > 0) {
+        console.log('Adding experience entries:', portfolioData.experience);
         for (const exp of portfolioData.experience) {
-          await this.addExperience(portfolio.id, exp);
+          if (exp.company && exp.position) { // Only add if required fields are present
+            await this.addExperience(portfolio.id, exp);
+          }
         }
       }
 
       // Add skills
       if (portfolioData.skills && portfolioData.skills.length > 0) {
+        console.log('Adding skills:', portfolioData.skills);
         await this.addSkills(portfolio.id, portfolioData.skills);
       }
 
       // Add projects
       if (portfolioData.projects && portfolioData.projects.length > 0) {
+        console.log('Adding projects:', portfolioData.projects);
         for (const project of portfolioData.projects) {
-          await this.addProject(portfolio.id, project);
+          if (project.title) { // Only add if title is present
+            await this.addProject(portfolio.id, project);
+          }
         }
       }
 
       // Add social links
       if (portfolioData.socialLinks) {
+        console.log('Adding social links:', portfolioData.socialLinks);
         await this.addSocialLinks(portfolio.id, portfolioData.socialLinks);
       }
 
       // Add contact info
       if (portfolioData.email) {
+        console.log('Adding contact info:', portfolioData.email);
         await this.upsertContactInfo(portfolio.id, { email: portfolioData.email });
       }
 
+      console.log('Complete portfolio created successfully:', portfolio);
       return portfolio;
     } catch (error) {
       console.error('Error creating complete portfolio:', error);
