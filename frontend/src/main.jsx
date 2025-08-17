@@ -7,6 +7,7 @@ import CreatePortfolio from './CreatePortfolio.jsx';
 import SignUp from './pages/SignUp.jsx';
 import Login from './pages/Login.jsx';
 import EmailConfirm from './pages/EmailConfirm.jsx';
+import PublicPortfolio from './pages/PublicPortfolio.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import './index.css'
 
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </ProtectedRoute>
       } />
       <Route path="/preview" element={<PortfolioPreview />} />
+      <Route path="/p/:slug" element={<PublicPortfolio />} />
     </Routes>
   </BrowserRouter>
 );

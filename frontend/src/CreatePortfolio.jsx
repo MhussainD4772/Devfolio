@@ -95,11 +95,25 @@ const CreatePortfolio = () => {
     try {
       // Transform form data to database format
       const portfolioData = portfolioService.transformFormDataToDatabase(formData);
+      console.log('Submitting portfolio data:', portfolioData);
+      console.log('Experience descriptions:', portfolioData.experience.map(exp => exp.description));
+      console.log('Project descriptions:', portfolioData.projects.map(proj => proj.description));
       
       // Create the complete portfolio in Supabase
       const portfolio = await portfolioService.createCompletePortfolio(portfolioData);
       
-      setSubmitMessage(`Portfolio created successfully! Your portfolio is available at: ${window.location.origin}/${portfolio.slug}`);
+      const portfolioUrl = `${window.location.origin}/p/${portfolio.slug}`;
+      setSubmitMessage(`Portfolio created successfully! Your portfolio is available at: ${portfolioUrl}`);
+      
+      // Auto-copy to clipboard
+      try {
+        await navigator.clipboard.writeText(portfolioUrl);
+        setTimeout(() => {
+          setSubmitMessage(`Portfolio created successfully! Link copied to clipboard: ${portfolioUrl}`);
+        }, 1000);
+      } catch (error) {
+        console.error('Failed to copy to clipboard:', error);
+      }
       
       // Reset form after successful submission
       setFormData({
@@ -119,7 +133,25 @@ const CreatePortfolio = () => {
       });
     } catch (error) {
       console.error('Error creating portfolio:', error);
-      setSubmitMessage(`Error creating portfolio: ${error.message}`);
+      
+      // Handle different types of error objects
+      let errorMessage = 'Unknown error occurred';
+      
+      if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.error) {
+          errorMessage = error.error;
+        } else if (error.details) {
+          errorMessage = error.details;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      }
+      
+      setSubmitMessage(`Error creating portfolio: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }

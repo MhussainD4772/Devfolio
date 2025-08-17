@@ -4,8 +4,24 @@
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create custom types
-CREATE TYPE social_platform AS ENUM ('github', 'linkedin', 'twitter', 'website');
+-- Create custom types (only if they don't exist)
+DO $$ BEGIN
+    CREATE TYPE social_platform AS ENUM ('github', 'linkedin', 'twitter', 'website');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Drop existing tables in correct order (if they exist)
+DROP TABLE IF EXISTS portfolio_views CASCADE;
+DROP TABLE IF EXISTS contact_info CASCADE;
+DROP TABLE IF EXISTS social_links CASCADE;
+DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS skills CASCADE;
+DROP TABLE IF EXISTS experience CASCADE;
+DROP TABLE IF EXISTS education CASCADE;
+DROP TABLE IF EXISTS portfolios CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- Users table (extends Supabase auth.users)
 CREATE TABLE IF NOT EXISTS users (
@@ -28,7 +44,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Portfolios table (main portfolio data)
 CREATE TABLE IF NOT EXISTS portfolios (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
     name TEXT NOT NULL,
     bio TEXT,
     profile_picture_url TEXT,
@@ -37,8 +52,7 @@ CREATE TABLE IF NOT EXISTS portfolios (
     slug TEXT UNIQUE,
     theme JSONB DEFAULT '{"primary": "#3B82F6", "secondary": "#1E40AF"}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, slug)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Education table
@@ -139,7 +153,6 @@ CREATE TABLE IF NOT EXISTS portfolio_views (
 );
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_portfolios_user_id ON portfolios(user_id);
 CREATE INDEX IF NOT EXISTS idx_portfolios_slug ON portfolios(slug);
 CREATE INDEX IF NOT EXISTS idx_education_portfolio_id ON education(portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_experience_portfolio_id ON experience(portfolio_id);
@@ -157,162 +170,37 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at
+-- Create triggers for updated_at (drop existing first)
+DROP TRIGGER IF EXISTS update_portfolios_updated_at ON portfolios;
 CREATE TRIGGER update_portfolios_updated_at BEFORE UPDATE ON portfolios
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_education_updated_at ON education;
 CREATE TRIGGER update_education_updated_at BEFORE UPDATE ON education
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_experience_updated_at ON experience;
 CREATE TRIGGER update_experience_updated_at BEFORE UPDATE ON experience
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_skills_updated_at ON skills;
 CREATE TRIGGER update_skills_updated_at BEFORE UPDATE ON skills
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_social_links_updated_at ON social_links;
 CREATE TRIGGER update_social_links_updated_at BEFORE UPDATE ON social_links
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_contact_info_updated_at ON contact_info;
 CREATE TRIGGER update_contact_info_updated_at BEFORE UPDATE ON contact_info
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Row Level Security (RLS) policies
-ALTER TABLE portfolios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE education ENABLE ROW LEVEL SECURITY;
-ALTER TABLE experience ENABLE ROW LEVEL SECURITY;
-ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
-ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE social_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE contact_info ENABLE ROW LEVEL SECURITY;
-ALTER TABLE portfolio_views ENABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
--- Users can read their own data
-CREATE POLICY "Users can view own portfolios" ON portfolios
-    FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own education" ON education
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can view own experience" ON experience
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can view own skills" ON skills
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can view own projects" ON projects
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can view own social links" ON social_links
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can view own contact info" ON contact_info
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
--- Users can insert their own data
-CREATE POLICY "Users can insert own portfolios" ON portfolios
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own education" ON education
-    FOR INSERT WITH CHECK (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can insert own experience" ON experience
-    FOR INSERT WITH CHECK (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can insert own skills" ON skills
-    FOR INSERT WITH CHECK (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can insert own projects" ON projects
-    FOR INSERT WITH CHECK (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can insert own social links" ON social_links
-    FOR INSERT WITH CHECK (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can insert own contact info" ON contact_info
-    FOR INSERT WITH CHECK (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
--- Users can update their own data
-CREATE POLICY "Users can update own portfolios" ON portfolios
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own education" ON education
-    FOR UPDATE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can update own experience" ON experience
-    FOR UPDATE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can update own skills" ON skills
-    FOR UPDATE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can update own projects" ON projects
-    FOR UPDATE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can update own social links" ON social_links
-    FOR UPDATE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can update own contact info" ON contact_info
-    FOR UPDATE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
--- Users can delete their own data
-CREATE POLICY "Users can delete own portfolios" ON portfolios
-    FOR DELETE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own education" ON education
-    FOR DELETE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can delete own experience" ON experience
-    FOR DELETE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can delete own skills" ON skills
-    FOR DELETE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can delete own projects" ON projects
-    FOR DELETE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can delete own social links" ON social_links
-    FOR DELETE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can delete own contact info" ON contact_info
-    FOR DELETE USING (portfolio_id IN (SELECT id FROM portfolios WHERE user_id = auth.uid()));
-
--- Profiles policies
-CREATE POLICY "Users can view own profile" ON profiles
-    FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile" ON profiles
-    FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert own profile" ON profiles
-    FOR INSERT WITH CHECK (auth.uid() = id);
-
--- Public read access for public portfolios
-CREATE POLICY "Public can view public portfolios" ON portfolios
-    FOR SELECT USING (is_public = true);
-
-CREATE POLICY "Public can view public education" ON education
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE is_public = true));
-
-CREATE POLICY "Public can view public experience" ON experience
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE is_public = true));
-
-CREATE POLICY "Public can view public skills" ON skills
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE is_public = true));
-
-CREATE POLICY "Public can view public projects" ON projects
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE is_public = true));
-
-CREATE POLICY "Public can view public social links" ON social_links
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE is_public = true));
-
-CREATE POLICY "Public can view public contact info" ON contact_info
-    FOR SELECT USING (portfolio_id IN (SELECT id FROM portfolios WHERE is_public = true));
-
--- Anyone can insert portfolio views
-CREATE POLICY "Anyone can insert portfolio views" ON portfolio_views
-    FOR INSERT WITH CHECK (true);
+-- Note: RLS policies are disabled for testing
+-- You can enable them later for production security
 
 -- Function to automatically create user record when auth.users is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -328,13 +216,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to create user record
+-- Drop existing trigger if it exists, then create new one
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Function to generate unique slug
-CREATE OR REPLACE FUNCTION generate_unique_slug(name TEXT, user_id UUID)
+CREATE OR REPLACE FUNCTION generate_unique_slug(name TEXT)
 RETURNS TEXT AS $$
 DECLARE
     base_slug TEXT;
@@ -348,7 +237,7 @@ BEGIN
     final_slug := base_slug;
     
     -- Check if slug exists and generate unique one
-    WHILE EXISTS (SELECT 1 FROM portfolios WHERE slug = final_slug AND user_id != portfolios.user_id) LOOP
+    WHILE EXISTS (SELECT 1 FROM portfolios WHERE slug = final_slug) LOOP
         counter := counter + 1;
         final_slug := base_slug || '-' || counter;
     END LOOP;
@@ -362,13 +251,14 @@ CREATE OR REPLACE FUNCTION auto_generate_slug()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.slug IS NULL OR NEW.slug = '' THEN
-        NEW.slug := generate_unique_slug(NEW.name, NEW.user_id);
+        NEW.slug := generate_unique_slug(NEW.name);
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to auto-generate slug
+-- Trigger to auto-generate slug (drop existing first)
+DROP TRIGGER IF EXISTS auto_generate_portfolio_slug ON portfolios;
 CREATE TRIGGER auto_generate_portfolio_slug
     BEFORE INSERT ON portfolios
     FOR EACH ROW EXECUTE FUNCTION auto_generate_slug();
