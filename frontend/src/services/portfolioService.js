@@ -716,7 +716,8 @@ class PortfolioService {
         title: proj.title,
         description: proj.description,
         githubLink: proj.githubLink,
-        liveLink: proj.liveLink
+        liveLink: proj.liveLink,
+        imageUrl: proj.imageUrl
       })),
       socialLinks: formData.socialLinks,
       email: formData.email
