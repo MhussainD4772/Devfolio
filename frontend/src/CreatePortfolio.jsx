@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import PortfolioViewer from './PortfolioViewer';
 import portfolioService from './services/portfolioService';
+import ProfileImageUpload from './components/ProfileImageUpload';
+import ProjectImageUpload from './components/ProjectImageUpload';
+import { useAuth } from './hooks/useAuth';
 
 const CreatePortfolio = () => {
   const [formData, setFormData] = useState({
@@ -11,7 +14,7 @@ const CreatePortfolio = () => {
     education: [{ institution: '', degree: '', year: '', description: '' }],
     experience: [{ company: '', position: '', duration: '', description: '' }],
     skills: [],
-    projects: [{ title: '', description: '', githubLink: '', liveLink: '' }],
+    projects: [{ title: '', description: '', githubLink: '', liveLink: '', imageUrl: '' }],
     socialLinks: {
       github: '',
       linkedin: '',
@@ -20,6 +23,7 @@ const CreatePortfolio = () => {
   });
 
   const [newSkill, setNewSkill] = useState('');
+  const { user } = useAuth();
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -41,7 +45,7 @@ const CreatePortfolio = () => {
     const templates = {
       education: { institution: '', degree: '', year: '', description: '' },
       experience: { company: '', position: '', duration: '', description: '' },
-      projects: { title: '', description: '', githubLink: '', liveLink: '' }
+      projects: { title: '', description: '', githubLink: '', liveLink: '', imageUrl: '' }
     };
     
     setFormData(prev => ({
@@ -81,6 +85,39 @@ const CreatePortfolio = () => {
         ...prev.socialLinks,
         [platform]: value
       }
+    }));
+  };
+
+  // Image handling functions
+  const handleProfileImageUpload = (imageUrl, imagePath) => {
+    setFormData(prev => ({
+      ...prev,
+      profilePicture: imageUrl
+    }));
+  };
+
+  const handleProfileImageRemove = () => {
+    setFormData(prev => ({
+      ...prev,
+      profilePicture: ''
+    }));
+  };
+
+  const handleProjectImageUpload = (projectIndex, imageUrl, imagePath) => {
+    setFormData(prev => ({
+      ...prev,
+      projects: prev.projects.map((project, i) => 
+        i === projectIndex ? { ...project, imageUrl } : project
+      )
+    }));
+  };
+
+  const handleProjectImageRemove = (projectIndex) => {
+    setFormData(prev => ({
+      ...prev,
+      projects: prev.projects.map((project, i) => 
+        i === projectIndex ? { ...project, imageUrl: '' } : project
+      )
     }));
   };
 
@@ -296,21 +333,15 @@ const CreatePortfolio = () => {
                 
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-3">
-                    Profile Picture URL
+                    Profile Picture
                   </label>
-                  <input
-                    type="url"
-                    value={formData.profilePicture}
-                    onChange={(e) => handleInputChange('profilePicture', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-lg"
-                    placeholder="https://example.com/profile.jpg"
+                  <ProfileImageUpload
+                    currentImageUrl={formData.profilePicture}
+                    onImageUpload={handleProfileImageUpload}
+                    onImageRemove={handleProfileImageRemove}
+                    userId={user?.id}
+                    className="mb-4"
                   />
-                  <p className="text-sm text-gray-500 mt-2 flex items-center">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Upload functionality coming soon. For now, please provide a direct image URL.
-                  </p>
                 </div>
               </div>
             </div>
@@ -616,6 +647,20 @@ const CreatePortfolio = () => {
                             placeholder="https://project-demo.com"
                           />
                         </div>
+                      </div>
+                      
+                      {/* Project Image Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Project Image
+                        </label>
+                        <ProjectImageUpload
+                          currentImageUrl={project.imageUrl}
+                          onImageUpload={(imageUrl, imagePath) => handleProjectImageUpload(index, imageUrl, imagePath)}
+                          onImageRemove={() => handleProjectImageRemove(index)}
+                          userId={user?.id}
+                          projectIndex={index}
+                        />
                       </div>
                     </div>
                   </div>
